@@ -177,22 +177,6 @@ class ByteLevelBPE:
 
 
 if __name__ == "__main__":
-
-    text= """
-    Haré todo lo que pueda y un poco más de lo que pueda si es que eso es posible, y haré todo lo posible e incluso lo imposible si también lo imposible es posible.
-
-    Lo que nosotros hemos hecho, cosa que no hizo usted, es engañar a la gente.
-
-    Cuanto peor mejor para todos y cuanto peor para todos mejor, mejor para mí el suyo. Beneficio político.
-
-    Es el vecino el que elige al alcalde y es el alcalde el que quiere que sean los vecinos el alcalde.
-
-    Me gusta Cataluña, hacen cosas.
-
-    It's very difficult, todo esto.
-
-    Dije que bajaría los impuestos y los estoy subiendo.
-    """
     
     if len(sys.argv) < 2:
         print("Uso:")
@@ -222,13 +206,13 @@ if __name__ == "__main__":
         decoded = bpe.decode(encoded)
         tokens = bpe.tokenize(test_text)
         
-        print(f"Encoded: {encoded}")
-        print(f"Tokens: {tokens}")
-        print(f"Decoded: '{decoded}'")
-        print(f"¿Codificación correcta?: {test_text == decoded}")
+        print(f"Encoded: {encoded}", end="\n\n")
+        print(f"Tokens: {tokens}", end="\n\n")
+        print(f"Decoded: '{decoded}'", end="\n\n")
+        print(f"¿Codificación correcta?: {test_text == decoded}", end="\n\n")
         
         bpe.save(output_model)
-        print(f"Modelo guardado en: {output_model}")
+        print(f"Modelo guardado en: {output_model}", end="\n\n")
 
     elif mode == "eval":
         if len(sys.argv) < 4 or len(sys.argv) > 5:
@@ -255,11 +239,11 @@ if __name__ == "__main__":
         tokens = bpe.tokenize(input_text)
         decoded_text = bpe.decode(token_ids)
         
-        print("Texto original:", repr(input_text))
-        print("Token IDs:", token_ids)
-        print("Tokens (string):", tokens)
-        print("Texto decodificado:", repr(decoded_text))
-        print("¿Decodificación correcta?:", input_text == decoded_text)
+        print("Texto original:", repr(input_text), end="\n\n")
+        print("Token IDs:", token_ids, end="\n\n")
+        print("Tokens (string):", tokens, end="\n\n")
+        print("Texto decodificado:", repr(decoded_text), end="\n\n")
+        print("¿Decodificación correcta?:", input_text == decoded_text, end="\n\n")
 
     else:
         print("Modo no reconocido. Usa `train` o `eval`.")
