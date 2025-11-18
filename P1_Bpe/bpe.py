@@ -18,6 +18,8 @@ class ByteLevelBPE:
         self.vocab : Dict = {} # mapea tokens (tuplas de bytes) a IDs para codificación
         self.id2bytes: List[bytes] = [] # mapea IDs a bytes (para decodificación)
 
+        self.logging = True
+
     @staticmethod
     def _to_byte_tokens(s: str) -> List[Tuple[int, ...]]:
         """
@@ -111,21 +113,24 @@ class ByteLevelBPE:
 
     def encode(self, text: str) -> List[int]:
         """Convierte el texto de entrada en una lista de token IDs."""
+
+        if self.logging: print("Codificando texto con BPE...") 
         
         # Convertir a tokens de bytes y aplicar fusiones
         tokens = self._to_byte_tokens(text)
-        for pair in self.merges:
+        iterator = tqdm(self.merges, desc="Aplicando merges") if self.logging else self.merges 
+        for pair in iterator:
             tokens = self._merge_in_line(tokens, pair)
         
-        # convertimos tokens a ids usando el vocabulario
+        # convertimos tokens a ids usando el vocabulario (con barra de progreso)
         token_ids = []
-        for token in tokens:
+        iter_tokens = tqdm(tokens, desc="Convirtiendo tokens a IDs") if self.logging else tokens
+        for token in iter_tokens:
             if token in self.vocab:
                 token_ids.append(self.vocab[token])
             else:
                 # por si acaso
                 print(f"Warning: Token {token} not found in vocabulary")
-        
         return token_ids
 
     def decode(self, ids: List[int]) -> str:
@@ -175,6 +180,13 @@ class ByteLevelBPE:
         self.vocab = data["vocab"]
         self.id2bytes = data["id2bytes"]
 
+def encode_file(bpe_model_path: str, input_fpath: str):
+    """Utilidad para codificar un archivo de texto a partir de un filepath y un ."""
+    bpe = ByteLevelBPE()
+    bpe.load(bpe_model_path)
+    with open(input_fpath, "r", encoding="utf-8") as fin:
+        input_text = fin.read()
+    return bpe.encode(input_text)
 
 if __name__ == "__main__":
     
