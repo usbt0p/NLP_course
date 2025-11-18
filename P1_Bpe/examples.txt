@@ -1,0 +1,7 @@
+Kingsport Fire Department Senior Captain Terry Arnold responded to Eastman Wednesday morning.
+[b'K', b'ing', b's', b'por', b't ', b'F', b'ir', b'e ', b'D', b'e', b'part', b'ment ', b'S', b'en', b'i', b'or ', b'C', b'ap', b't', b'ain ', b'T', b'er', b'r', b'y ', b'Ar', b'n', b'old ', b'res', b'p', b'on', b'd', b'ed to ', b'E', b'ast', b'man ', b'W', b'ed', b'n', b'es', b'day ', b'mor', b'n', b'ing', b'.']
+[b'Kings', b'port ', b'Fire Department ', b'Senior ', b'Cap', b'tain ', b'T', b'erry ', b'Arnold ', b'respond', b'ed to ', b'Eastman ', b'Wednesday ', b'morn', b'ing.']
+
+But, anthropologists don’t agree Graecopithecus was actually a human ancestor.
+[b'B', b'ut', b', ', b'an', b'thr', b'op', b'olog', b'ist', b's ', b'd', b'on', b'\xe2\x80\x99t ', b'ag', b're', b'e ', b'G', b'r', b'a', b'ec', b'op', b'i', b'th', b'ec', b'us ', b'was ', b'act', b'u', b'ally ', b'a ', b'h', b'um', b'an ', b'anc', b'est', b'or', b'.']
+[b'B', b'ut, ', b'an', b'thr', b'op', b'olog', b'ists ', b'don\xe2\x80\x99t ', b'agree ', b'Graecopithecus ', b'was ', b'actually ', b'a ', b'human ', b'ancestor', b'.']

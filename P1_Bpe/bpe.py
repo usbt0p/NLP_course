@@ -58,7 +58,7 @@ class ByteLevelBPE:
         self.id2bytes = [bytes([i]) for i in range(256)]
 
 
-    def train(self, lines: Iterable[str], vocab_size: int = 1000,
+    def train(self, lines: Iterable[str], vocab_size: int = 10_000,
               show_progress: bool = True):
         """
         Aprende las fusiones del BPE y construye los vocabularios.
@@ -155,7 +155,7 @@ class ByteLevelBPE:
         
         # Convertir tokens a strings usando el vocabulario
         token_ids = [self.vocab.get(token, -1) for token in tokens]
-        return [self.id2bytes[token_id].decode("utf-8", errors="ignore") 
+        return [self.id2bytes[token_id].decode("utf-8", errors="replace") 
                 for token_id in token_ids if token_id != -1] 
     
     def save(self, path: str):
