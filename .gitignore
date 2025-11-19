@@ -1,3 +1,5 @@
 *.pkl
 __pycache__/
 .venv
+!bpe_model_1000.pkl
+!bpe_model_10000.pkl
