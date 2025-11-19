@@ -1,6 +1,6 @@
 import numpy as np
 from tqdm import tqdm
-# TODO fix pythonpath issue when executing as module
+from P1_Bpe.bpe import BPE
 
 def sigmoid(x):
     out = np.empty_like(x, dtype=np.float32)
@@ -12,7 +12,7 @@ def sigmoid(x):
     return out
     
 
-# TODO 1: Implementa un método de entrenamiento simple, esto es, con learning rate (LR) constante y ventana estática.
+# 1: Implementa un método de entrenamiento simple, esto es, con learning rate (LR) constante y ventana estática.
 class Trainer:
     def _neg_sampling_fix(self):
         # 2: Inicializa `self.neg_prob`, que será usado como distribución de probabilidad 
@@ -34,9 +34,8 @@ class Trainer:
         t = 1e-5
         f = self.token_counts / len(self.tokens)
         
-        # Calcular probabilidad de mantener cada token
-        # Evitar división por cero usando un epsilon muy pequeño
-        f_safe = np.clip(f, 1e-10, None)  # Asegurar que f >= 1e-10
+        # Calcular probabilidad de mantener cada token, evitar división por cero usando un epsilon muy pequeño
+        f_safe = np.clip(f, 1e-10, None)
         p_keep = np.sqrt(t / f_safe) + t / f_safe
         
         # *literalmente* eliminar tokens mas frecuentes del conjunto de tokens
@@ -67,7 +66,7 @@ class Trainer:
         
         # Aplica ajustes para evitar la sobreponderancia de tokens frecuentes
         self._neg_sampling_fix()
-        self._subsample_data() # TODO esto tiene que ir antes o despues de neg sampling fix??
+        self._subsample_data() 
 
         del self.token_counts 
 
@@ -101,7 +100,7 @@ class Trainer:
         return context_indices
 
     def train(self):
-        # TODO 1.3: Inicializa dos matrices de `self.vocab_size` x `self.embedding_dim` para tokens centrales y contexto.
+        # 1.3: Inicializa dos matrices de `self.vocab_size` x `self.embedding_dim` para tokens centrales y contexto.
         central_tok_matrix = self.rng.normal(
             loc=0.0, scale=0.1, size=(self.vocab_size, self.embedding_dim)
         ).astype(np.float32)
@@ -166,7 +165,7 @@ class Trainer:
                         # `pos_score` es `neg_score` y se usa `-neg_score` para actualizar las embeddings.
                     
                     # Calcular loss de muestra positiva
-                    loss_pos += -np.log(pos_score + 1e-10)  # adding epsilon to avoid log(0)
+                    loss_pos += -np.log(max(pos_score, 1e-10))  # adding epsilon to avoid log(0)
                     
                     # Tokens que no se pueden muestrear porque ya están en el contexto 
                     # (no queremos que el modelo aprenda a predecirlos como negativos)
@@ -188,7 +187,7 @@ class Trainer:
                         # output embedding update
                         context_tok_matrix[neg_tok] += lr * (0 - neg_score) * central_emb_neg_original
 
-                        loss_neg += -np.log(1 - neg_score + 1e-10)  # adding epsilon to avoid log(0)
+                        loss_neg += -np.log(max(1 - neg_score, 1e-10))  # adding epsilon to avoid log(0)
             
             # Contar el número real de pares (centro, contexto) procesados en esta época
             total_pairs = 0
@@ -219,7 +218,7 @@ class Trainer:
 
 
 def dump_embeddings(embeddings, output_file):
-    # TODO 1.6: Escribe las embeddings en un fichero de texto donde, en la primera fila, 
+    # 1.6: Escribe las embeddings en un fichero de texto donde, en la primera fila, 
         # aparezca el tamaño del vocabulario y el número de dimensiones de las embeddings y, 
         # en el resto de filas, cada token seguido de su correspondiente embedding, 
         # separando cada elemento con espacios simples. Ojo, los tokens pueden contener espacios.
@@ -228,8 +227,9 @@ def dump_embeddings(embeddings, output_file):
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(f"{vocab_size} {embedding_dim}\n")
         for token_id in range(vocab_size):
+            decoded_tkn = ... # TODO obtener la representación en bytes del token_id usando el modelo BPE
             embedding_str = ' '.join(map(str, embeddings[token_id]))
-            f.write(f"{token_id} {embedding_str}\n")
+            f.write(f"\"{token_id}\" {embedding_str}\n")
         
 def main():
     
@@ -240,8 +240,12 @@ def main():
     import matplotlib.pyplot as plt
 
     # assuming we are executing from the root PLN directory
-    bpe_model_path = "P1_Bpe/new_model.pkl"
-    input_fpath = "P1_Bpe/tiny_cc_news_small.txt"
+    bpe_model_path = "P1_Bpe/bpe_model_1000.pkl"
+    input_fpath = "P1_Bpe/tiny_cc_news.txt"
+    # input_precomputed = "P2_Skipgram/encoded_tokens_1000.txt"
+    
+    # with open(input_precomputed, "r", encoding="utf-8") as f:
+    #     encoded_tokens = list(map(int, f.read().strip().split()))
     n_epochs = 5    
 
     trainer = Trainer(
