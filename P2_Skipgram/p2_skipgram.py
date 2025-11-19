@@ -190,16 +190,30 @@ class Trainer:
 
                         loss_neg += -np.log(1 - neg_score + 1e-10)  # adding epsilon to avoid log(0)
             
-            # Normalizar loss por número de tokens y de negative samples
-            num_tokens = len(self.tokens)
-            total_loss = (loss_pos + loss_neg) / num_tokens
-            loss_pos_norm = loss_pos / num_tokens
-            loss_neg_norm = loss_neg / num_tokens + self.neg_samples
+            # Contar el número real de pares (centro, contexto) procesados en esta época
+            total_pairs = 0
+            for i in range(len(self.tokens)):
+                if not self.use_dynamic_window:
+                    context_indices = self.words_in_context(i)
+                else:
+                    dynamic_window_size = self.window_size // 2  # usar promedio para estimación
+                    start = max(0, i - dynamic_window_size)
+                    end = min(len(self.tokens), i + dynamic_window_size + 1)
+                    context_indices = list(range(start, i)) + list(range(i + 1, end))
+                total_pairs += len(context_indices)
+            
+            # Normalizar correctamente
+            loss_pos_norm = loss_pos / total_pairs if total_pairs > 0 else 0
+            loss_neg_norm = loss_neg / (total_pairs * self.neg_samples) if total_pairs > 0 else 0
+            total_loss_norm = loss_pos_norm + loss_neg_norm
             
             # almacenar o imprimir la loss si se desea monitorear el entrenamiento
-            self.loss_history['total_loss'].append(total_loss)
+            self.loss_history['total_loss'].append(total_loss_norm)
             self.loss_history['pos_loss'].append(loss_pos_norm)
             self.loss_history['neg_loss'].append(loss_neg_norm)
+            
+            # Imprimir loss para monitoreo
+            print(f"Epoch {epoch+1}: Total Loss: {total_loss_norm:.4f}, Pos Loss: {loss_pos_norm:.4f}, Neg Loss: {loss_neg_norm:.4f}")
 
         return central_tok_matrix, context_tok_matrix
 
