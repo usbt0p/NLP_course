@@ -17,9 +17,10 @@ class Trainer:
     def _neg_sampling_fix(self):
         # 2: Inicializa `self.neg_prob`, que será usado como distribución de probabilidad 
             # a la hora de hacer el muestreo negativo, de modo que contenga las frecuencias 
-            # relativas de cada token del vocabulario elevadas a 2/3.
+            # relativas de cada token del vocabulario elevadas a 3/4, y normalizadas, 
+            # de modo que las probabilidades resultantes sumen 1.
         freq = self.token_counts / len(self.tokens)
-        freq_power = np.power(freq, 2/3) # TODO por que??
+        freq_power = np.power(freq, 3/4) # Exponente 3/4 según paper Word2Vec - suaviza distribución
         neg_prob = freq_power / np.sum(freq_power) # normalizar para que sume 1
         
         self.neg_prob = neg_prob
@@ -34,8 +35,9 @@ class Trainer:
         f = self.token_counts / len(self.tokens)
         
         # Calcular probabilidad de mantener cada token
-        # FIXME solve division by zero in a proper way
-        p_keep = np.where(f > 0, np.sqrt(t / f) + t / f, 1.0)
+        # Evitar división por cero usando un epsilon muy pequeño
+        f_safe = np.clip(f, 1e-10, None)  # Asegurar que f >= 1e-10
+        p_keep = np.sqrt(t / f_safe) + t / f_safe
         
         # *literalmente* eliminar tokens mas frecuentes del conjunto de tokens
         mask = self.rng.random(len(self.tokens)) < p_keep[self.tokens]
@@ -73,6 +75,10 @@ class Trainer:
         self.use_dynamic_window = True
         self.use_lr_decay = True
 
+        self.loss_history = {'total_loss': [],
+                             'neg_loss': [],
+                             'pos_loss': []}
+
     def sample_neg(self, forbidden):
         # 1.2: Obtén una muestra negativa de tokens, evitando seleccionar aquellos en 
             # `forbidden`, que serán los que estén dentro de la ventana actual.
@@ -103,9 +109,10 @@ class Trainer:
             loc=0.0, scale=0.1, size=(self.vocab_size, self.embedding_dim)
         ).astype(np.float32)
 
-        # TODO 1.4: Para cada `epoch` y para cada token en el corpus:
-               
+        # 1.4: Para cada `epoch` y para cada token en el corpus hacer el bucle
         for epoch in tqdm(range(self.epochs)):
+            loss_pos = 0.0   
+            loss_neg = 0.0
             for i, central_tok in enumerate(self.tokens):
                 
                 # Para cada token en el contexto del token actual, es decir, para cada 
@@ -129,7 +136,6 @@ class Trainer:
                     # Pasar el resultado por la función `sigmoid`, obteniendo `pos_score`.
                     context_tok = self.tokens[j]
 
-                    # FIXME maybe this will fail due to it being a list instead of an np.array
                     dot_product = np.dot(
                         central_tok_matrix[central_tok],
                         context_tok_matrix[context_tok]
@@ -146,14 +152,21 @@ class Trainer:
                     
                     # Muestra positiva: actualizar las embeddings del token central y token contexto usando el LR, 
                     # `(1 - pos_score)` y la embedding (¡original!) del otro token.
+                    # Guardar embeddings originales antes de actualizar
+                    central_emb_original = central_tok_matrix[central_tok].copy()
+                    context_emb_original = context_tok_matrix[context_tok].copy()
+                    
                     # input enbedding update
-                    central_tok_matrix[central_tok] += lr * (1 - pos_score) * context_tok_matrix[context_tok]
+                    central_tok_matrix[central_tok] += lr * (1 - pos_score) * context_emb_original
                     # output embedding update
-                    context_tok_matrix[context_tok] += lr * (1 - pos_score) * central_tok_matrix[central_tok]
+                    context_tok_matrix[context_tok] += lr * (1 - pos_score) * central_emb_original
         
                     # Muestras negativas: obtener muestras negativas para el token central y, para cada una, 
                         # realizar un proceso similar al de la muestra positiva, con la salvedad de que ahora 
                         # `pos_score` es `neg_score` y se usa `-neg_score` para actualizar las embeddings.
+                    
+                    # Calcular loss de muestra positiva
+                    loss_pos += -np.log(pos_score + 1e-10)  # adding epsilon to avoid log(0)
                     
                     # Tokens que no se pueden muestrear porque ya están en el contexto 
                     # (no queremos que el modelo aprenda a predecirlos como negativos)
@@ -166,53 +179,87 @@ class Trainer:
                         )
                         neg_score = sigmoid(dot_product_neg)
 
+                        # Guardar embeddings originales antes de actualizar
+                        central_emb_neg_original = central_tok_matrix[central_tok].copy()
+                        neg_emb_original = context_tok_matrix[neg_tok].copy()
+                        
                         # input embedding update
-                        central_tok_matrix[central_tok] += lr * (0 - neg_score) * context_tok_matrix[neg_tok]
+                        central_tok_matrix[central_tok] += lr * (0 - neg_score) * neg_emb_original
                         # output embedding update
-                        context_tok_matrix[neg_tok] += lr * (0 - neg_score) * central_tok_matrix[central_tok]
+                        context_tok_matrix[neg_tok] += lr * (0 - neg_score) * central_emb_neg_original
+
+                        loss_neg += -np.log(1 - neg_score + 1e-10)  # adding epsilon to avoid log(0)
+            
+            # Normalizar loss por número de tokens y de negative samples
+            num_tokens = len(self.tokens)
+            total_loss = (loss_pos + loss_neg) / num_tokens
+            loss_pos_norm = loss_pos / num_tokens
+            loss_neg_norm = loss_neg / num_tokens + self.neg_samples
+            
+            # almacenar o imprimir la loss si se desea monitorear el entrenamiento
+            self.loss_history['total_loss'].append(total_loss)
+            self.loss_history['pos_loss'].append(loss_pos_norm)
+            self.loss_history['neg_loss'].append(loss_neg_norm)
 
         return central_tok_matrix, context_tok_matrix
 
 
-def dump_embeddings(
-        # ...
-        E
-        ):
+def dump_embeddings(embeddings, output_file):
     # TODO 1.6: Escribe las embeddings en un fichero de texto donde, en la primera fila, 
         # aparezca el tamaño del vocabulario y el número de dimensiones de las embeddings y, 
         # en el resto de filas, cada token seguido de su correspondiente embedding, 
         # separando cada elemento con espacios simples. Ojo, los tokens pueden contener espacios.
-    pass
-
-
+    
+    vocab_size, embedding_dim = embeddings.shape
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(f"{vocab_size} {embedding_dim}\n")
+        for token_id in range(vocab_size):
+            embedding_str = ' '.join(map(str, embeddings[token_id]))
+            f.write(f"{token_id} {embedding_str}\n")
+        
 def main():
     
-    '''Execute with `python -m P2_Skipgram.p2_skipgram` from the root PLN directory
+    '''Execute with `python3 -m P2_Skipgram.p2_skipgram` from the root PLN directory
     until the pythonpath issue is solved.'''
 
     from P1_Bpe.bpe import encode_file
+    import matplotlib.pyplot as plt
 
     # assuming we are executing from the root PLN directory
     bpe_model_path = "P1_Bpe/new_model.pkl"
-    input_fpath = "P1_Bpe/tiny_cc_news.txt"
+    input_fpath = "P1_Bpe/tiny_cc_news_small.txt"
+    n_epochs = 5    
 
     trainer = Trainer(
         encoded_tokens=encode_file(bpe_model_path, input_fpath),
         rng=np.random.default_rng(42),
         embedding_dim=100,
         window_size=5,
-        epochs=5,
+        epochs=n_epochs,
         lr=0.05,
         lr_min_factor=0.0001,
         neg_samples=5,
     )
 
+    # Train the model
     T, C = trainer.train()
     E = (T + C) / 2.0  # Matriz final de embeddings
-    dump_embeddings(
-        # ...
-        E
-        )
+    dump_embeddings(E, "./P2_Skipgram/embeddings.txt")
+    
+    # Plot losses after training
+    plt.figure(figsize=(10, 6))
+    for loss_type, losses in trainer.loss_history.items():
+        plt.plot(range(1, n_epochs+1), losses, label=loss_type)
+    # plot only total loss
+    #plt.plot(range(n_epochs), trainer.loss_history['total_loss'], label='Total Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Training Loss History')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig('./P2_Skipgram/loss_plot.png')
+    plt.show()
+    print("Loss plot saved to ./P2_Skipgram/loss_plot.png")
     
 
 if __name__ == "__main__":
