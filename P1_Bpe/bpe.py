@@ -52,7 +52,7 @@ class ByteLevelBPE:
                 line = line[:i] + [line[i] + line[i+1]] + line[i+2:]
         return line
     
-    def _init_vocab(self, lines):
+    def _init_vocab(self):
         """
         Inicializa el vocabulario con los bytes individuales.
         """
@@ -60,14 +60,15 @@ class ByteLevelBPE:
         self.id2bytes = [bytes([i]) for i in range(256)]
 
 
-    def train(self, lines: Iterable[str], vocab_size: int = 10_000,
+    def train(self, lines: Iterable[str], 
+              vocab_size: int = 1000, # 1000 para la prueba, 10_000 para la defensa
               show_progress: bool = True):
         """
         Aprende las fusiones del BPE y construye los vocabularios.
         No se aplica max_merges, se para al alcanzar vocab_size.
         """
         # iicializar el vocabulario, que es el conjunto de bytes individuales
-        self._init_vocab(lines)
+        self._init_vocab()
 
         # contar frecuencias de pares de byte tokens
         lines_tokens = [self._to_byte_tokens(line) for line in lines]
@@ -190,25 +191,16 @@ def encode_file(bpe_model_path: str, input_fpath: str):
 
 if __name__ == "__main__":
     
-    if len(sys.argv) < 2:
-        print("Uso:")
-        print("  python p1_bpe.py train <input_train_corpus> <output_model_file>")
-        print("  python p1_bpe.py eval <input_model_file> <input_text>")
-        sys.exit(1)
+    vocabs = [1000, 10_000]
 
-    mode = sys.argv[1]
-    bpe = ByteLevelBPE()
-
-    if mode == "train":
-        if len(sys.argv) != 4:
-            print("Uso: python p1_bpe.py train <input_train_corpus> <output_model_file>")
-            sys.exit(1)
-        input_corpus = sys.argv[2]
-        output_model = sys.argv[3]
-        with open(input_corpus, "r", encoding="utf-8") as f:
+    # train with different vocab sizes and save models for each
+    for vocab_size in vocabs:
+        print(f"\n--- Entrenando BPE con vocab_size={vocab_size} ---\n")
+        bpe = ByteLevelBPE()
+        with open("P1_Bpe/tiny_cc_news.txt", "r", encoding="utf-8") as f:
             lines = f.readlines()
-        bpe.train(lines)
-        
+        bpe.train(lines, vocab_size=vocab_size)
+
         # Test de verificación después del entrenamiento
         test_text = "Hola mundo"
         print(f"\n--- Test de verificación ---")
@@ -223,43 +215,9 @@ if __name__ == "__main__":
         print(f"Decoded: '{decoded}'", end="\n\n")
         print(f"¿Codificación correcta?: {test_text == decoded}", end="\n\n")
         
+        output_model = f"P1_Bpe/bpe_model_{vocab_size}.pkl"
         bpe.save(output_model)
         print(f"Modelo guardado en: {output_model}", end="\n\n")
-
-    elif mode == "eval":
-        if len(sys.argv) < 4 or len(sys.argv) > 5:
-            print("Uso: python p1_bpe.py eval <input_model_file> <input_text> [-f]")
-            print("  -f: indica que <input_text> es un archivo")
-            sys.exit(1)
-        
-        input_model = sys.argv[2]
-        input_text_or_file = sys.argv[3]
-        
-        # Check if -f flag is present
-        if len(sys.argv) == 5 and sys.argv[4] == "-f":
-            # Read from file
-            with open(input_text_or_file, "r", encoding="utf-8") as f:
-                input_text = f.read()
-        else:
-            # Use as direct text
-            input_text = input_text_or_file
-        
-        bpe.load(input_model)
-        
-        # Mostrar diferentes representaciones
-        token_ids = bpe.encode(input_text)
-        tokens = bpe.tokenize(input_text)
-        decoded_text = bpe.decode(token_ids)
-        
-        print("Texto original:", repr(input_text), end="\n\n")
-        print("Token IDs:", token_ids, end="\n\n")
-        print("Tokens (string):", tokens, end="\n\n")
-        print("Texto decodificado:", repr(decoded_text), end="\n\n")
-        print("¿Decodificación correcta?:", input_text == decoded_text, end="\n\n")
-
-    else:
-        print("Modo no reconocido. Usa `train` o `eval`.")
-
 
 
     
