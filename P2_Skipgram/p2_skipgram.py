@@ -1,5 +1,6 @@
 import numpy as np
 from tqdm import tqdm
+from P1_Bpe.bpe import ByteLevelBPE
 
 
 def sigmoid(x):
@@ -250,7 +251,6 @@ def dump_embeddings(embeddings, output_file, bpe_model_path=None):
     # Load BPE model if path is provided to decode token IDs to words
     bpe = None
     if bpe_model_path:
-        from P1_Bpe.bpe import ByteLevelBPE
         bpe = ByteLevelBPE()
         bpe.load(bpe_model_path)
 
@@ -281,16 +281,20 @@ def main():
     # assuming we are executing from the root PLN directory
     bpe_model_path = "P1_Bpe/bpe_model_1000.pkl"
     input_fpath = "P1_Bpe/tiny_cc_news.txt"
-    # input_precomputed = "P2_Skipgram/encoded_tokens_1000.txt"
-    
-    # with open(input_precomputed, "r", encoding="utf-8") as f:
-    #     encoded_tokens = list(map(int, f.read().strip().split()))
-    n_epochs = 5    
 
+    # descomentar esto para usar el tokenizador BPE y codificar el archivo de texto
+    #enc_tkn = encode_file(bpe_model_path, input_fpath)
+
+    input_precomputed = "P2_Skipgram/encoded_tokens_1000.txt"
+    
+    with open(input_precomputed, "r", encoding="utf-8") as f:
+        enc_tkn = list(map(int, f.read().strip().split()))
+    
     n_epochs = 15
     trainer = Trainer(
-        encoded_tokens=encode_file(bpe_model_path, input_fpath),
+        encoded_tokens=enc_tkn,
         epochs=n_epochs,
+        lr=0.025,
     )
 
     # Train the model
