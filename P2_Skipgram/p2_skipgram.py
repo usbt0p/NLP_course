@@ -241,34 +241,16 @@ class Trainer:
         return embeddings, central_tok_matrix, context_tok_matrix
 
 
-def dump_embeddings(embeddings, output_file, bpe_model_path=None):
-    # 1.6: Escribe las embeddings en un fichero de texto donde, en la primera fila,
-    # aparezca el tamaño del vocabulario y el número de dimensiones de las embeddings y,
-    # en el resto de filas, cada token seguido de su correspondiente embedding,
-    # separando cada elemento con espacios simples. Ojo, los tokens pueden contener espacios.
-
-    # Load BPE model if path is provided to decode token IDs to words
-    bpe = None
-    if bpe_model_path:
-        from P1_Bpe.bpe import ByteLevelBPE
-        bpe = ByteLevelBPE()
-        bpe.load(bpe_model_path)
-
+def dump_embeddings(embeddings, output_file):
+    """Guarda las embeddings en formato limpio con IDs de tokens"""
     vocab_size, embedding_dim = embeddings.shape
-    # FIXME encoding issues: check the embeddiings.txt file to find out
-    with open(output_file, "w", encoding="utf-8") as f:
+    
+    # Usar encoding estándar UTF-8 sin BOM
+    with open(output_file, "w", encoding="utf-8", newline='\n') as f:
         f.write(f"{vocab_size} {embedding_dim}\n")
         for token_id in range(vocab_size):
-            embedding_str = " ".join(map(str, embeddings[token_id]))
-            
-            # Decode token id to word using BPE if available
-            if bpe:
-                token_word = bpe.decode([token_id])
-                # escape quotes in the token word
-                token_word = token_word.replace('"', '\\"')
-                f.write(f'"{token_word}" {embedding_str}\n')
-            else:
-                f.write(f'"{token_id}" {embedding_str}\n')
+            embedding_str = " ".join(f"{x:.6f}" for x in embeddings[token_id])
+            f.write(f"{token_id} {embedding_str}\n")
 
 
 def main():
@@ -281,21 +263,27 @@ def main():
     # assuming we are executing from the root PLN directory
     bpe_model_path = "P1_Bpe/bpe_model_1000.pkl"
     input_fpath = "P1_Bpe/tiny_cc_news.txt"
-    # input_precomputed = "P2_Skipgram/encoded_tokens_1000.txt"
+    input_precomputed = "P2_Skipgram/encoded_tokens_1000.txt"
     
-    # with open(input_precomputed, "r", encoding="utf-8") as f:
-    #     encoded_tokens = list(map(int, f.read().strip().split()))
-    n_epochs = 5    
-
-    n_epochs = 15
+    # Cargar tokens precomputados para evitar recodificar cada vez
+    with open(input_precomputed, "r", encoding="utf-8") as f:
+        encoded_tokens = list(map(int, f.read().strip().split()))
+    
+    print(f"Loaded {len(encoded_tokens)} precomputed tokens from {input_precomputed}")
+    
+    n_epochs = 5  # Número normal de épocas para entrenamiento real
     trainer = Trainer(
-        encoded_tokens=encode_file(bpe_model_path, input_fpath),
+        encoded_tokens=encoded_tokens,
         epochs=n_epochs,
     )
 
     # Train the model
     E, _, _ = trainer.train()
-    dump_embeddings(E, "./P2_Skipgram/embeddings.txt", bpe_model_path=bpe_model_path)
+    
+    # Guardar embeddings en formato legible
+    dump_embeddings(E, "./P2_Skipgram/embeddings_readable.txt")
+    
+    print("Embeddings guardados en embeddings_readable.txt")
 
     # Plot losses after training
     plt.figure(figsize=(10, 6))
