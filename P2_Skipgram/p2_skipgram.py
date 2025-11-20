@@ -242,33 +242,16 @@ class Trainer:
         return embeddings, central_tok_matrix, context_tok_matrix
 
 
-def dump_embeddings(embeddings, output_file, bpe_model_path=None):
-    # 1.6: Escribe las embeddings en un fichero de texto donde, en la primera fila,
-    # aparezca el tamaño del vocabulario y el número de dimensiones de las embeddings y,
-    # en el resto de filas, cada token seguido de su correspondiente embedding,
-    # separando cada elemento con espacios simples. Ojo, los tokens pueden contener espacios.
-
-    # Load BPE model if path is provided to decode token IDs to words
-    bpe = None
-    if bpe_model_path:
-        bpe = ByteLevelBPE()
-        bpe.load(bpe_model_path)
-
+def dump_embeddings(embeddings, output_file):
+    """Guarda las embeddings en formato limpio con IDs de tokens"""
     vocab_size, embedding_dim = embeddings.shape
-    # FIXME encoding issues: check the embeddiings.txt file to find out
-    with open(output_file, "w", encoding="utf-8") as f:
+    
+    # Usar encoding estándar UTF-8 sin BOM
+    with open(output_file, "w", encoding="utf-8", newline='\n') as f:
         f.write(f"{vocab_size} {embedding_dim}\n")
         for token_id in range(vocab_size):
-            embedding_str = " ".join(map(str, embeddings[token_id]))
-            
-            # Decode token id to word using BPE if available
-            if bpe:
-                token_word = bpe.decode([token_id])
-                # escape quotes in the token word
-                token_word = token_word.replace('"', '\\"')
-                f.write(f'"{token_word}" {embedding_str}\n')
-            else:
-                f.write(f'"{token_id}" {embedding_str}\n')
+            embedding_str = " ".join(f"{x:.6f}" for x in embeddings[token_id])
+            f.write(f"{token_id} {embedding_str}\n")
 
 
 def main():
@@ -294,12 +277,16 @@ def main():
     trainer = Trainer(
         encoded_tokens=enc_tkn,
         epochs=n_epochs,
-        lr=0.025,
+        #lr=0.025,
     )
 
     # Train the model
     E, _, _ = trainer.train()
-    dump_embeddings(E, "./P2_Skipgram/embeddings.txt", bpe_model_path=bpe_model_path)
+    
+    # Guardar embeddings en formato legible
+    dump_embeddings(E, "./P2_Skipgram/embeddings_readable.txt")
+    
+    print("Embeddings guardados en embeddings_readable.txt")
 
     # Plot losses after training
     plt.figure(figsize=(10, 6))
