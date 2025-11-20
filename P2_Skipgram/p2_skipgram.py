@@ -142,11 +142,10 @@ class Trainer:
             num_pos_neg_pairs = 0
 
             # 5: Haz que el LR disminuya progresivamente durante el entrenamiento (linear decay).
-            # TODO usar batch decay o epoch decay?? es decir; poner este decay dentro del bucle de batches o de epochs??
+            # usar batch decay o epoch decay??
             if self.use_lr_decay:
                 # decay linearly with epoch
-                # TODO usar esto, o self.lr - (epoch / self.epochs) * (self.lr - self.lr_min_factor * self.lr)?
-                lr = self.lr - (epoch / self.epochs) * (self.lr - self.lr_min_factor)
+                lr = self.lr - (epoch / self.epochs) * (self.lr - self.lr_min_factor) # or self.lr_min_factor * self.lr
 
             else:
                 lr = self.lr
@@ -242,16 +241,46 @@ class Trainer:
         return embeddings, central_tok_matrix, context_tok_matrix
 
 
-def dump_embeddings(embeddings, output_file):
-    """Guarda las embeddings en formato limpio con IDs de tokens"""
+def dump_embeddings(embeddings, output_file, bpe_model_path=None, use_words=True):
+    # 1.6: Escribe las embeddings en un fichero de texto donde, en la primera fila,
+    # aparezca el tamaño del vocabulario y el número de dimensiones de las embeddings y,
+    # en el resto de filas, cada token seguido de su correspondiente embedding,
+    # separando cada elemento con espacios simples.
+    
+    # If use_words=True and bpe_model_path is provided, use tab-separated format:
+    # token_word\tembedding_values (no escaping, tabs separate word from embeddings)
+
     vocab_size, embedding_dim = embeddings.shape
     
-    # Usar encoding estándar UTF-8 sin BOM
-    with open(output_file, "w", encoding="utf-8", newline='\n') as f:
+    # Load BPE model if needed
+    bpe = None
+    if use_words and bpe_model_path:
+        bpe = ByteLevelBPE()
+        bpe.load(bpe_model_path)
+    
+    with open(output_file, "w", encoding="utf-8", errors="surrogateescape") as f:
         f.write(f"{vocab_size} {embedding_dim}\n")
         for token_id in range(vocab_size):
-            embedding_str = " ".join(f"{x:.6f}" for x in embeddings[token_id])
-            f.write(f"{token_id} {embedding_str}\n")
+            embedding_str = " ".join(map(str, embeddings[token_id]))
+            
+            if bpe:
+                # Decode to word - los caracteres de control y bytes inválidos se representan como-is
+                try:
+                    token_word = bpe.decode([token_id])
+                    # Reemplazar caracteres problemáticos para formato de texto
+                    # Usar repr() para caracteres de control, pero mantener caracteres imprimibles
+                    clean_word = ''.join(
+                        c if c.isprintable() and c != '\t' else f'\\x{ord(c):02x}'
+                        for c in token_word
+                    )
+                    f.write(f"{clean_word}\t{embedding_str}\n")
+                except Exception as e:
+                    # Si falla la decodificación, usar el ID, por si acaso
+                    print(f"Decoding error for token ID {token_id}: {e}")
+                    f.write(f"{token_id}\t{embedding_str}\n")
+            else:
+                # Just write token ID (space-separated)
+                f.write(f"{token_id}\t{embedding_str}\n")
 
 
 def main():
@@ -283,10 +312,12 @@ def main():
     # Train the model
     E, _, _ = trainer.train()
     
-    # Guardar embeddings en formato legible
-    dump_embeddings(E, "./P2_Skipgram/embeddings_readable.txt")
+    # Save with token IDs (clean format)
+    dump_embeddings(E, "./P2_Skipgram/embeddings.txt")
     
-    print("Embeddings guardados en embeddings_readable.txt")
+    # Save with actual words (tab-separated format)
+    dump_embeddings(E, "./P2_Skipgram/embeddings_words.txt", 
+                   bpe_model_path=bpe_model_path, use_words=True)
 
     # Plot losses after training
     plt.figure(figsize=(10, 6))
