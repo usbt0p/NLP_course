@@ -1,6 +1,7 @@
 import numpy as np
 from tqdm import tqdm
 from P1_Bpe.bpe import ByteLevelBPE
+import matplotlib.pyplot as plt
 
 
 def sigmoid(x):
@@ -92,6 +93,7 @@ class Trainer:
         self.use_lr_decay = True
         self.init = "uniform" # can be "uniform" or "xavier"
 
+        self.live_plotting = True
         self.loss_history = {"total_loss": [], "neg_loss": [], "pos_loss": []}
 
     def sample_neg(self, forbidden):
@@ -116,6 +118,9 @@ class Trainer:
     def train(self):
         # 1.3: Inicializa dos matrices de `self.vocab_size` x `self.embedding_dim` para tokens centrales y contexto.
         
+        if self.live_plotting:
+            plt.ion()
+            fig, ax = plt.subplots(figsize=(10, 6))
 
         if self.init == "uniform":
             central_tok_matrix = self.rng.uniform(
@@ -146,7 +151,6 @@ class Trainer:
             if self.use_lr_decay:
                 # decay linearly with epoch
                 lr = self.lr - (epoch / self.epochs) * (self.lr - self.lr_min_factor) # or self.lr_min_factor * self.lr
-
             else:
                 lr = self.lr
 
@@ -231,11 +235,29 @@ class Trainer:
             self.loss_history["pos_loss"].append(loss_pos_norm)
             self.loss_history["neg_loss"].append(loss_neg_norm)
 
+            if self.live_plotting:
+                ax.clear()
+                epochs_list = range(1, epoch + 2)
+                ax.plot(epochs_list, self.loss_history["total_loss"], label="Total Loss", marker='o')
+                ax.plot(epochs_list, self.loss_history["pos_loss"], label="Pos Loss", marker='s')
+                ax.plot(epochs_list, self.loss_history["neg_loss"], label="Neg Loss", marker='^')
+                ax.set_xlabel("Epoch")
+                ax.set_ylabel("Loss")
+                ax.set_title("Training Loss History (Live)")
+                ax.legend()
+                ax.grid(True)
+                fig.canvas.draw()
+                fig.canvas.flush_events()
+
             # Imprimir loss para monitoreo
+            # FIXME coordinate tqdm and this printing to allow correct formatting
             print(
                 f"\nEpoch {epoch+1}: Total Loss: {avg_epoch_loss:.4f}, Pos Loss: {loss_pos_norm:.4f}, Neg Loss: {loss_neg_norm:.4f}"
             )
 
+        plt.ioff()
+        plt.close(fig)
+        
         # we get the final embeddings as the average of input and output embeddings
         embeddings = (central_tok_matrix + context_tok_matrix) / 2.0
         return embeddings, central_tok_matrix, context_tok_matrix
@@ -302,22 +324,22 @@ def main():
     with open(input_precomputed, "r", encoding="utf-8") as f:
         enc_tkn = list(map(int, f.read().strip().split()))
     
-    n_epochs = 15
+    n_epochs = 10
     trainer = Trainer(
         encoded_tokens=enc_tkn,
         epochs=n_epochs,
-        #lr=0.025,
+        
     )
 
     # Train the model
     E, _, _ = trainer.train()
     
-    # Save with token IDs (clean format)
-    dump_embeddings(E, "./P2_Skipgram/embeddings.txt")
+    # # Save with token IDs (clean format)
+    # dump_embeddings(E, "./P2_Skipgram/embeddings.txt")
     
-    # Save with actual words (tab-separated format)
-    dump_embeddings(E, "./P2_Skipgram/embeddings_words.txt", 
-                   bpe_model_path=bpe_model_path, use_words=True)
+    # # Save with actual words (tab-separated format)
+    # dump_embeddings(E, "./P2_Skipgram/embeddings_words.txt", 
+    #                bpe_model_path=bpe_model_path, use_words=True)
 
     # Plot losses after training
     plt.figure(figsize=(10, 6))
@@ -332,7 +354,7 @@ def main():
     plt.grid(True)
     plt.savefig("./P2_Skipgram/loss_plot.png")
     plt.show()
-    print("Loss plot saved to ./P2_Skipgram/loss_plot.png")
+    print("Loss plot saved to ./P2_Skipgram/loss_plot_better_params.png")
 
 
 if __name__ == "__main__":
