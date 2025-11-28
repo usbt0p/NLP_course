@@ -39,6 +39,8 @@ class LogisticRegression:
     # * Método `backward` que, dada la entrada, la salida obtenida y la salida deseada, modifique los parámetros del modelo.
     def backward(self, loss):
         #https://www.freecodecamp.org/news/demystifying-gradient-descent-and-backpropagation-via-logistic-regression-based-image-classification-9b5526c2ed46/
+        
+        # TODO is the derivative of the sigmoid needed because of the chain rule?
         ...
         
     # * Método `compute_loss`, que implemente la función de entropía cruzada binaria.
