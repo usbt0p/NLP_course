@@ -1,0 +1,2 @@
+- precision mayor al 60%
+- con 10 para test vale (5 positivos 5 negativos). Usar los 10 primeros
