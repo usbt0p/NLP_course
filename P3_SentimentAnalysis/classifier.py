@@ -1,4 +1,5 @@
 import numpy as np
+import math
 import pickle
 from P2_Skipgram import p2_skipgram
 from P1_Bpe import bpe
@@ -26,9 +27,6 @@ class LogisticRegression:
     def sigmoid(self, z):
         assert isinstance(z, np.ndarray)
         return 1.0/(1.0 + np.exp(-z))
-    
-    def sigmoid_derivative(self, z):
-        return self.sigmoid(z) * (1.0 - self.sigmoid(z))
 
     # * Método `forward`, que implemente la combinación lineal de los pesos y sesgo con la entrada seguida de la función logística.
     def forward(self, input):
@@ -37,36 +35,49 @@ class LogisticRegression:
         return self.sigmoid(z)
 
     # * Método `backward` que, dada la entrada, la salida obtenida y la salida deseada, modifique los parámetros del modelo.
-    def backward(self, loss):
-        #https://www.freecodecamp.org/news/demystifying-gradient-descent-and-backpropagation-via-logistic-regression-based-image-classification-9b5526c2ed46/
-        
-        # TODO is the derivative of the sigmoid needed because of the chain rule?
-        ...
+    def backward(self, predicted, real, inputs):        
+        # https://cs230.stanford.edu/fall2018/section_files/section3_soln.pdf
+        # by the chain rule of ΔL/Δw = ΔL/Δsigmoid * Δsigmoid/Δ(w*x+b) * Δ(w*x+b)/Δw = (ŷ - y) @ X
+        # and for biases: ΔL/Δb = ... = ŷ - y
+        error = predicted - real
+
+        # we do that and account for the number of elems
+        new_weights = np.matmul(inputs, error.T) * (1 / float(real.shape[1]))
+        new_bias = np.sum(error) * (1 / float(real.shape[1]))
+
+        return new_weights, new_bias
         
     # * Método `compute_loss`, que implemente la función de entropía cruzada binaria.
-    def compute_loss():
-        ...
-
+    def compute_loss(predicted : list, real : list) -> float:
+        # TODO hacer en numpy
+        assert len(predicted) == len(real)
+        loss = 0
+        for ŷ, y, in zip(predicted, real):
+            loss += y * math.log(ŷ) + (1 - y) * (1 - math.log(ŷ))
+        return - loss / len(predicted)
+        
     # * Método `fit`, que recibe los datos de entrenamiento y optimiza el modelo mediante descenso de gradiente.
-    def fit():
+    def fit(self, X, Y, epochs=100):
+        
+        for epoch in epochs:
 
-        ...
-        # por cada epoch:
             # fordward pass
-
-            # calcular perdida (se puede hacer dentro del forward)
-            
+            activations = self.forward(X)
+            Ŷ = self.predict(activations)
+            # calcular perdida
+            self.compute_loss(Ŷ, Y)
             # backward pass, devolver nuevos W y b
-
+            new_w, new_b = self.backward(Ŷ, Y, X)
             # actualizar pesos con descenso de gradiente
-            #self.w = self.w - self.lr * loss
+            self.w = self.w - self.lr * new_w
+            self.b = self.b - self.lr * new_b
 
-            #mostrar perdida
+            # plot loss
 
     # Método `predict`, que usa `forward` y obtiene la salida final de inferencia en `{0, 1}`.
     def predict(self, input):
         output = self.forward(input)
-        y_hat = output > 0.5 # TODO que pasa si es = a 0'5??
+        y_hat = output > 0.5
         return y_hat, output
 
 # TODO 3: Implementa una función principal que realice todos los pasos necesarios para entrenar y evaluar un modelo de regresión logística que usa agregados de token embeddings como características.
