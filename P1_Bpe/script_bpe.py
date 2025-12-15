@@ -1,5 +1,9 @@
+from os import getcwd
 import sys
+sys.path.append(getcwd())
+
 from P1_Bpe.bpe import ByteLevelBPE, encode_file
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

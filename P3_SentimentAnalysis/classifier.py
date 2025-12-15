@@ -1,24 +1,68 @@
+from os import getcwd
+from sys import path
+path.append(getcwd())
+
 import numpy as np
 import math
 import pickle
+import matplotlib.pyplot as plt
 from P2_Skipgram import p2_skipgram
-from P1_Bpe import bpe
+from P1_Bpe.bpe import ByteLevelBPE
 
-# TODO 1: Implementa funciones para cargar token embeddings de un modelo entrenado y para obtener una sola embedding por texto de entrada. Puedes usar la función de agregación que quieras. 
+# TODO 1: Implementa funciones para cargar token embeddings de un modelo entrenado y para obtener una 
+# sola embedding por texto de entrada. Puedes usar la función de agregación que quieras. 
 
-# TODO load embedding model and apply it to the input text
 
-# TODO use the mean to compute a single embedding
+def load_embedding(path: str):
+    # load embedding model and apply it to the input tex
+    with open(path, 'r', encoding="utf-8") as e:
+        header = e.readline()
+        body = e.readlines()
+        
+    # Check if the first char of the first line is a digit to determine mode
+    indexmode = body[0].split()[0].isdigit()
+
+    if indexmode:
+        data = {}
+        for line in body:
+            parts = line.strip().split()
+            idx = int(parts[0])
+            vec = [float(x) for x in parts[1:]]
+            data[idx] = vec
+        body = data
+    else:
+        # tab separation if the start is not a digit
+        body = {line[:line.find("\t")] : 
+                [float(d) for d in line[line.find("\t")+1:].split(" ")]
+                 for line in body}
+            
+    return header, body
+
+def embeddings_from_tokens(input_text : str, 
+                           embeddings : dict, 
+                           bpe_model: str, 
+                           mode="idx"):
+    # make tokens
+    bpe = ByteLevelBPE()
+    bpe.load(bpe_model)
+    tokens = bpe.encode(input_text) if mode == "idx" else bpe.tokenize(input_text)
+    
+    for token in tokens:
+        yield (token, embeddings[token])
+
+# use the mean to compute a single embedding
 # this will lose the order of the words but it's easier to do
-
-
-# TODO 2: Implementa la clase LogisticRegression con los siguientes componentes:
+# TODO other aggregations that are better /( loose less information)
+def aggregate_single_embedding(embedding):
+    # TODO maybe remove stopwords here, since we're already removing info,
+    # in favour of simplicity, better to remove from the mean the non important stuff
+    return np.average(embedding)
 
 class LogisticRegression:
 
     # * Campos para almacenar los pesos, sesgo y learning rate. 
     def __init__(self, num_weights):
-        # TODO comprobar que los pesos puedan ser cualquier cosa
+        # TODO comprobar que los pesos puedan ser cualquier random o si tienen que ser ceros
         self.W = np.random.uniform(-0.1, 0.1, num_weights).astype(np.float32)
         #np.zeros(num_weights, dtype=np.float32)
         self.b = 0.0
@@ -57,9 +101,13 @@ class LogisticRegression:
         return - loss / len(predicted)
         
     # * Método `fit`, que recibe los datos de entrenamiento y optimiza el modelo mediante descenso de gradiente.
-    def fit(self, X, Y, epochs=100):
+    def fit(self, X, Y, epochs=100, interactive=False):
         
         for epoch in epochs:
+            
+            if self.live_plotting:
+                plt.ion()
+                fig, ax = plt.subplots(figsize=(10, 6))
 
             # fordward pass
             activations = self.forward(X)
@@ -72,8 +120,8 @@ class LogisticRegression:
             self.w = self.w - self.lr * new_w
             self.b = self.b - self.lr * new_b
 
-            # plot loss
-
+            # TODO plot loss, and save image
+            
     # Método `predict`, que usa `forward` y obtiene la salida final de inferencia en `{0, 1}`.
     def predict(self, input):
         output = self.forward(input)
@@ -83,3 +131,15 @@ class LogisticRegression:
 # TODO 3: Implementa una función principal que realice todos los pasos necesarios para entrenar y evaluar un modelo de regresión logística que usa agregados de token embeddings como características.
 
 # NOTA: no es necesario almacenar el modelo de regresión.
+
+if __name__ == "__main__":
+    
+    embeddings_file = "/home/usbt0p/Uni/PLN/PLN/P2_Skipgram/embeddings.txt"
+    bpe_file = "/home/usbt0p/Uni/PLN/PLN/P1_Bpe/bpe_model_1000.pkl"
+    h, embeddings = load_embedding(embeddings_file)
+    
+    text = """Kingsport Fire Department Senior Captain Terry Arnold 
+    responded to Eastman Wednesday morning."""
+
+    for emb in embeddings_from_tokens(text, embeddings, bpe_file):
+        print(emb[0], emb[1][:3])

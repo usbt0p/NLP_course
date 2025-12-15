@@ -1,3 +1,7 @@
+from os import getcwd
+from sys import path
+path.append(getcwd())
+
 import numpy as np
 from tqdm import tqdm
 from P1_Bpe.bpe import ByteLevelBPE
