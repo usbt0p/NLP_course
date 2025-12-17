@@ -1,3 +1,10 @@
 tqdm
 numpy
 matplotlib
+
+datasets
+evaluate
+transformers
+torch
+transformers[torch]
+scikit-learn
