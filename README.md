@@ -5,7 +5,7 @@ This repository contains three projects developed for a Natural Language Process
 The implemented algorithms:
 1. Byte Pair Encoding (BPE)
 2. Skip-gram with Negative Sampling
-3. Sentiment Analysis
+3. Binary Sentiment Classification via Logistic Regression 
 
 Code is built to be run in a linux environment, but there should be no problem running it in a windows environment with the proper dependencies installed. It also is made to be self-explanatory, with comments and docstrings explaining the code, so head over to the code to understand it better (mixed comments in spanish and english though).
 
@@ -53,7 +53,7 @@ An implementation of the Word2Vec Skip-gram model to generate word embeddings. T
 
 ---
 
-## Project 3: Sentiment Analysis
+## Project 3: Binary Sentiment Classification via Logistic Regression
 **Folder:** `P3_SentimentAnalysis`
 
 ### Overview
